@@ -33,7 +33,7 @@ conf.cse.host = 'gcs.iotocean.org'; //'muv.iotocean.org';
 conf.cse.port = 7579;
 conf.cse.mqttport = 1883;
 conf.usesecure = 'disable';
-conf.commLink = 'udp'; //'udp'; //'tcp';
+conf.commLink = 'tcp'; //'udp'; //'tcp';
 conf.gcs_sys_id = 255;
 
 // AE core
@@ -43,7 +43,7 @@ conf.gcs = 'KETI_GCS';  // 'KETI_MUV';
 
 conf.drone = [];
 
-global.drone_info_file = 'drone_info.json'; //'rkah_1_route.json';
+global.drone_info_file = 'drone_info.json';
 
 try {
     conf.drone = JSON.parse(fs.readFileSync(drone_info_file, 'utf8'));
@@ -67,7 +67,7 @@ conf.auto_led = 'disable';  // 'enable'; // 'disable';
 
 conf.running_type = 'local';        // 'local' or 'global' : When this is worked in Server, select 'global'
 
-conf.use_terminal = 'enable'; //'enable';
+conf.use_terminal = 'disable'; //'enable';
 
 if (conf.use_terminal === 'enable') {
     require('./terminal_app');

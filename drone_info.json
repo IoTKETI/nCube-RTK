@@ -1,7 +1,7 @@
 [
     {
         "name": "KETI_Simul_1",
-        "gcs": "KETI_GCS",
+        "gcs": "UMACAIR",
         "goto_position": [
             "cancel",
             "37.5473048:127.1192978:200.0:10.0",
@@ -26,8 +26,8 @@
         "system_id": 105
     },
     {
-        "name": "KETI_Simul_2",
-        "gcs": "KETI_GCS",
+        "name": "UMACA52",
+        "gcs": "UMACAIR",
         "goto_position": [
             "cancel",
             "37.5474005:127.1192441:200.0:10.0",
@@ -49,6 +49,6 @@
             "37.5474005:127.1192441:50.0:10.0",
             "37.5475703:127.1199135:20.0:8.0"
         ],
-        "system_id": 106
+        "system_id": 52
     }
 ]
