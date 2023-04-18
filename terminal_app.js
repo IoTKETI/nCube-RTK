@@ -107,7 +107,7 @@ for (var idx in conf.drone) {
         follow_mode[conf.drone[idx].system_id].foll_ofs_z = 10;
         follow_mode[conf.drone[idx].system_id].foll_pos_p = 5;
 
-        target_pub_topic[conf.drone[idx].name] = '/Mobius/' + conf.gcs + '/GCS_Data/' + conf.drone[idx].name;
+        target_pub_topic[conf.drone[idx].name] = '/Mobius/' + conf.drone[idx].gcs + '/GCS_Data/' + conf.drone[idx].name;
     }
 }
 drone_items.push('All');
@@ -3868,7 +3868,7 @@ setInterval(function () {
                 follow_mode[conf.drone[idx].system_id].foll_ofs_z = 10;
                 follow_mode[conf.drone[idx].system_id].foll_pos_p = 5;
 
-                target_pub_topic[conf.drone[idx].name] = '/Mobius/' + conf.gcs + '/GCS_Data/' + conf.drone[idx].name;
+                target_pub_topic[conf.drone[idx].name] = '/Mobius/' + conf.drone[idx].gcs + '/GCS_Data/' + conf.drone[idx].name;
             }
             else {
                 command_delay++;
