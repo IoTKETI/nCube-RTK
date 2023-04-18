@@ -39,7 +39,15 @@ conf.gcs_sys_id = 255;
 // AE core
 conf.aei = "SgMavUTM"
 
-conf.gcs = 'KETI_GCS';  // 'KETI_MUV';
+conf.rtk = 'KETI_RTK'
+
+conf.sitl = {};
+conf.sitl.name = "KETI_Simul_1"
+conf.sitl.gcs = "KETI_GCS"
+conf.sitl.goto_position = [
+    'cancel', '37.2597483:126.6766316:6:2', '37.2597611:126.6759114:6:2'
+];
+conf.sitl.system_id = 105
 
 conf.drone = [];
 
@@ -52,7 +60,7 @@ try {
 
     info = {};
     info.name = 'KETI_Air_01';
-    info.gcs = conf.gcs;
+    info.gcs = 'KETI_GCS';
     info.goto_position = [
         'cancel', '37.2597483:126.6766316:6:2', '37.2597611:126.6759114:6:2'
     ];
@@ -61,6 +69,7 @@ try {
 
     fs.writeFileSync(drone_info_file, JSON.stringify(conf.drone, null, 4), 'utf8');
 }
+conf.drone.unshift(conf.sitl);
 
 conf.auto_landing_gear = 'disable';  // 'enable'; // 'disable';
 conf.auto_led = 'disable';  // 'enable'; // 'disable';
