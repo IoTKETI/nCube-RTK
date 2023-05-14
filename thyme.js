@@ -41,9 +41,6 @@ conf.aei = "S" + conf.rtk;
 conf.sitl = {};
 conf.sitl.name = "KETI_Simul_1";
 conf.sitl.gcs = "KETI_GCS";
-conf.sitl.goto_position = [
-    'cancel', '37.2597483:126.6766316:6:2', '37.2597611:126.6759114:6:2'
-];
 conf.sitl.system_id = 105;
 
 conf.drone = [];
@@ -58,20 +55,18 @@ try {
     info = {};
     info.name = 'KETI_Air_01';
     info.gcs = 'KETI_GCS';
-    info.goto_position = [
-        'cancel', '37.2597483:126.6766316:6:2', '37.2597611:126.6759114:6:2'
-    ];
     info.system_id = 1;
     conf.drone.push(info);
 
     fs.writeFileSync(drone_info_file, JSON.stringify(conf.drone, null, 4), 'utf8');
 }
-conf.drone.unshift(conf.sitl);
 
 conf.auto_landing_gear = 'disable';  // 'enable'; // 'disable';
 conf.auto_led = 'disable';  // 'enable'; // 'disable';
 
 conf.running_type = 'local';        // 'local' or 'global' : When this is worked in Server, select 'global'
 
-require('./http_app');
+setTimeout(() => {
+    require('./http_app');
+}, 100);
 

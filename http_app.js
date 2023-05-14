@@ -21,11 +21,82 @@ var udp = require('dgram');
 
 var mavlink = require('./mavlibrary/mavlink.js');
 
-mqtt_connect(conf.cse.host);
-
-var control_drone_info_topic = '/Mobius/' + conf.rtk + '/Control_Drone_Info';
+// var control_drone_info_topic = '/Mobius/' + conf.rtk + '/Control_Drone_Info';
+var control_drone_info_topic = '';
 
 global.drone_info_file_update_flag = 0;
+
+let include_sitl = false;
+
+init();
+
+function init() {
+    rtv('/Mobius/' + conf.rtk + '?rcn=1', conf.aei, 0, (rsc, res_body, count) => {
+        if (rsc === '2000') {
+            rtv('/Mobius/' + conf.rtk + '/DroneList?rcn=1', conf.aei, 0, (rsc, res_body, count) => {
+                if (rsc === '2000') {
+                    rtv('/Mobius/' + conf.rtk + '/DroneList/la', conf.aei, 0, (rsc, res_body, count) => {
+                        if (rsc === '2000') {
+                            if (res_body.hasOwnProperty('m2m:cin')) {
+                                if (res_body['m2m:cin'].hasOwnProperty('con')) {
+                                    conf.drone = res_body['m2m:cin'].con;
+                                    // console.log(conf.drone);
+
+                                    fs.writeFileSync(drone_info_file, JSON.stringify(conf.drone, null, 4), 'utf8');
+                                }
+                            }
+                        } else {
+                            crtci('/Mobius/' + conf.rtk + '/DroneList', conf.aei, conf.drone, 0, () => {
+                                // console.log(conf.drone);
+                            });
+                        }
+                    });
+                } else {
+                    crtcnt('/Mobius/' + conf.rtk, conf.aei, 'DroneList', 0, (rsc, res_body, count) => {
+                        if (parseInt(rsc) < 5000) {
+                            crtci('/Mobius/' + conf.rtk + '/DroneList', conf.aei, conf.drone, 0, () => {
+                                // console.log(conf.drone);
+                            });
+                        }
+                    });
+                }
+            });
+        } else {
+            crtae('/Mobius', conf.aei, conf.rtk, 0, (rsc, res_body, count) => {
+                if (parseInt(rsc) < 5000) {
+                    crtcnt('/Mobius/' + conf.rtk, conf.aei, 'DroneList', 0, (rsc, res_body, count) => {
+                        crtci('/Mobius/' + conf.rtk + '/DroneList', conf.aei, conf.drone, 0, (rsc, res_body, count) => {
+                            console.log(rsc, res_body)
+                        });
+                    });
+                }
+            });
+        }
+    });
+
+    control_drone_info_topic = '/Mobius/' + conf.rtk + '/DroneList';
+
+    for (let idx in conf.drone) {
+        if (conf.drone.hasOwnProperty(idx)) {
+            if (conf.drone[idx].name === conf.sitl.name) {
+                include_sitl = true;
+            }
+        }
+    }
+    if (!include_sitl) {
+        conf.drone.unshift(conf.sitl);
+        include_sitl = false;
+    }
+
+    mqtt_connect(conf.cse.host);
+
+    delsub('/Mobius/' + conf.rtk + '/DroneList/check_sub', 0, function (rsc, res_body, count) {
+        crtsub('/Mobius/' + conf.rtk + '/DroneList', conf.aei, 'check_sub', 'mqtt://' + conf.cse.host + '/' + conf.aei + '?ct=json', 0, function () {
+            let noti_topic = '/oneM2M/req/+/' + conf.aei + '/json';
+            mqtt_client.subscribe(noti_topic);
+        });
+    });
+}
 
 function mqtt_connect(serverip) {
     if (mqtt_client == null) {
@@ -130,6 +201,8 @@ function mqtt_connect(serverip) {
 
         mqtt_client.on('error', function (err) {
             console.log(err.message);
+            mqtt_client = null;
+            mqtt_connect(serverip);
         });
     }
 }
@@ -239,6 +312,30 @@ function onem2m_mqtt_noti_action(topic_arr, jsonObj) {
                                 var noti_topic = '/Mobius/' + conf.drone[idx].gcs + '/Drone_Data/' + conf.drone[idx].name + '/#';
                                 mqtt_client.unsubscribe(noti_topic);
                                 console.log('unsubscribe - ' + noti_topic);
+
+                                if (udpCommLink.hasOwnProperty(conf.drone[idx].system_id) || udpCommLink.hasOwnProperty(noti_topic)) {
+                                    if (udpCommLink.hasOwnProperty(conf.drone[idx].system_id)) {
+                                        udpCommLink[conf.drone[idx].system_id].socket.close();
+                                        delete udpCommLink[conf.drone[idx].system_id];
+                                    }
+                                    if (udpCommLink.hasOwnProperty(noti_topic)) {
+                                        udpCommLink[noti_topic].socket.close();
+                                        delete udpCommLink[noti_topic];
+                                    }
+                                    console.log('UDP socket delete on port ' + (10000 + conf.drone[idx].system_id) + ' [' + conf.drone[idx].system_id + ']-[' + noti_topic + ']');
+                                }
+
+                                if (tcpCommLink.hasOwnProperty(conf.drone[idx].system_id) || tcpCommLink.hasOwnProperty(noti_topic)) {
+                                    if (tcpCommLink.hasOwnProperty(conf.drone[idx].system_id)) {
+                                        tcpCommLink[conf.drone[idx].system_id].socket.close();
+                                        delete tcpCommLink[conf.drone[idx].system_id];
+                                    }
+                                    if (tcpCommLink.hasOwnProperty(noti_topic)) {
+                                        tcpCommLink[noti_topic].socket.close();
+                                        delete tcpCommLink[noti_topic];
+                                    }
+                                    console.log('TCP socket delete on port ' + (9000 + conf.drone[idx].system_id) + ' [' + conf.drone[idx].system_id + ']-[' + noti_topic + ']');
+                                }
                             }
                         }
 
@@ -248,13 +345,25 @@ function onem2m_mqtt_noti_action(topic_arr, jsonObj) {
                         console.log('mqtt response - 2001 ---->');
 
                         conf.drone = [];
-                        conf.drone = JSON.parse(JSON.stringify(cinObj.con)).drone;
+                        conf.drone = cinObj.con;
+                        include_sitl = false;
                         for (idx in conf.drone) {
                             if (conf.drone.hasOwnProperty(idx)) {
+                                if (conf.drone[idx].name === conf.sitl.name) {
+                                    include_sitl = true;
+                                }
                                 noti_topic = '/Mobius/' + conf.drone[idx].gcs + '/Drone_Data/' + conf.drone[idx].name + '/#';
                                 mqtt_client.subscribe(noti_topic);
                                 console.log('subscribe - ' + noti_topic);
                             }
+                        }
+
+                        if (!include_sitl) {
+                            conf.drone.unshift(conf.sitl);
+                            noti_topic = '/Mobius/' + conf.sitl.gcs + '/Drone_Data/' + conf.sitl.name + '/#';
+                            mqtt_client.subscribe(noti_topic);
+                            console.log('subscribe - ' + noti_topic);
+                            include_sitl = false;
                         }
                     }
                 }
@@ -266,7 +375,7 @@ function onem2m_mqtt_noti_action(topic_arr, jsonObj) {
 }
 
 function retrieve_drone() {
-    rtvct('/Mobius/UTM/gMavUTM/la', conf.aei, 0, function (rsc, res_body, count) {
+    rtv('/Mobius/' + conf.rtk + '/gMavUTM/la', conf.aei, 0, function (rsc, res_body, count) {
         if (rsc == 2000) {
             conf.drone = [];
             conf.drone = JSON.parse(JSON.stringify(res_body[Object.keys(res_body)[0]].con)).drone;
@@ -299,62 +408,9 @@ var gcs_content = {};
 
 var udpCommLink = {};
 var tcpCommLink = {};
-//
-// if (conf.commLink == 'udp') {
-//     if (udpClient == null) {
-//         udpClient = udp.createSocket('udp4');
-//
-//         udpClient.on('message', send_to_drone_from_gcs);
-//     }
-// }
-// else if (conf.commLink == 'tcp') {
-//     var _server = net.createServer(function (socket) {
-//         socket.id = require('shortid').generate();
-//         console.log('socket connected [' + socket.id + ']');
-//
-//         utm_socket[socket.id] = socket;
-//
-//         socket.on('data', send_to_drone_from_gcs);
-//
-//         socket.on('end', function () {
-//             console.log('end');
-//             if (utm_socket.hasOwnProperty(this.id)) {
-//                 delete utm_socket[this.id];
-//             }
-//         });
-//
-//         socket.on('close', function () {
-//             console.log('close');
-//             if (utm_socket.hasOwnProperty(this.id)) {
-//                 delete utm_socket[this.id];
-//             }
-//         });
-//
-//         socket.on('error', function (e) {
-//             console.log('error ', e);
-//             if (utm_socket.hasOwnProperty(this.id)) {
-//                 delete utm_socket[this.id];
-//             }
-//         });
-//     });
-//
-//     if (conf.running_type === 'local') {
-//         _server.listen(5760, function () {
-//             console.log('TCP Server for local GCS is listening on port 5760');
-//         });
-//     }
-//     else if (conf.running_type === 'global') {
-//         _server.listen(7598, function () {
-//             console.log('TCP Server for global GCS is listening on port 7598');
-//         });
-//     }
-//     else {
-//         console.log('[server.listen] conf.running_type is incorrect');
-//     }
-// }
 
 function createUdpCommLink(sys_id, port, topic) {
-    if (!tcpCommLink.hasOwnProperty(sys_id)) {
+    if (!udpCommLink.hasOwnProperty(sys_id)) {
         var udpSocket = udp.createSocket('udp4');
 
         udpSocket.id = sys_id;
@@ -628,10 +684,9 @@ function send_to_gcs_from_drone(topic, content_each) {
             });
         }
     } else if (conf.commLink === 'tcp') {
-
-        if (tcpCommLink.hasOwnProperty(topic+'/#')) {
+        if (tcpCommLink.hasOwnProperty(topic + '/#')) {
             //console.log('tttttttttttttttttttttttttttttttttttttttttttttttttttttttttt', topic)
-            tcpCommLink[topic+'/#'].socket.write(content_each);
+            tcpCommLink[topic + '/#'].socket.write(content_each);
         }
     }
 
@@ -1065,22 +1120,72 @@ function parseMavFromDrone(data) {
         } else if (msg_id == mavlink.MAVLINK_MSG_ID_MISSION_ITEM_INT) {
             // console.log('---> ' + 'MAVLINK_MSG_ID_MISSION_ITEM_INT - ' + data);
         }
-    } catch
-        (e) {
+    } catch (e) {
         console.log(e.message);
     }
 }
 
-function rtvct(target, aei, count, callback) {
+function crtae(parent, aei, rn, count, callback) {
+    var results_ss = {};
+    var bodyString = '';
+    results_ss['m2m:ae'] = {};
+    results_ss['m2m:ae'].rn = rn;
+    results_ss['m2m:ae'].api = "0.2.481.2.0001.001.000111";
+    results_ss['m2m:ae'].lbl = ['key1', 'key2'];
+    results_ss['m2m:ae'].rr = true;
+
+    bodyString = JSON.stringify(results_ss);
+    console.log(bodyString);
+
+    http_request(aei, parent, 'post', '2', bodyString, function (rsc, res_body) {
+        console.log(count + ' - ' + parent + '/' + rn + ' - x-m2m-rsc : ' + rsc + ' <----');
+        console.log(JSON.stringify(res_body));
+        callback(rsc, res_body, count);
+    });
+}
+
+function crtcnt(parent, aei, rn, count, callback) {
+    var results_ss = {};
+    var bodyString = '';
+    results_ss['m2m:cnt'] = {};
+    results_ss['m2m:cnt'].rn = rn;
+    results_ss['m2m:cnt'].lbl = [rn];
+
+    bodyString = JSON.stringify(results_ss);
+    console.log(bodyString);
+
+    http_request(aei, parent, 'post', '3', bodyString, function (rsc, res_body) {
+        console.log(count + ' - ' + parent + '/' + rn + ' - x-m2m-rsc : ' + rsc + ' <----');
+        console.log(JSON.stringify(res_body));
+        callback(rsc, res_body, count);
+    });
+}
+
+function crtci(parent, aei, con, count, callback) {
+    var results_ss = {};
+    var bodyString = '';
+    results_ss['m2m:cin'] = {};
+    results_ss['m2m:cin'].con = con;
+
+    bodyString = JSON.stringify(results_ss);
+    console.log(bodyString);
+
+    http_request(aei, parent, 'post', '4', bodyString, function (rsc, res_body) {
+        console.log(count + ' - ' + parent + '/' + con + ' - x-m2m-rsc : ' + rsc + ' <----');
+        console.log(JSON.stringify(res_body));
+        callback(rsc, res_body, count);
+    });
+}
+
+function rtv(target, aei, count, callback) {
     http_request(aei, target, 'get', '', '', function (rsc, res_body) {
         callback(rsc, res_body, count);
     });
 }
 
 function delsub(target, count, callback) {
-    http_request('Superman', target, 'delete', '', '', function (rsc, res_body) {
-        console.log(count + ' - ' + target + ' - x-m2m-rsc : ' + rsc + ' <----');
-        console.log(res_body);
+    http_request(conf.aei, target, 'delete', '', '', function (rsc, res_body) {
+        console.log('[delsub]', count + ' - ' + target + ' - x-m2m-rsc : ' + rsc + ' <----');
         callback(rsc, res_body, count);
     });
 }
@@ -1096,22 +1201,18 @@ function crtsub(parent, aei, rn, nu, count, callback) {
     //results_ss['m2m:sub'].exc = 0;
 
     bodyString = JSON.stringify(results_ss);
-    console.log(bodyString);
+    // console.log(bodyString);
 
     http_request(aei, parent, 'post', '23', bodyString, function (rsc, res_body) {
-        console.log(count + ' - ' + parent + '/' + rn + ' - x-m2m-rsc : ' + rsc + ' <----');
-        console.log(JSON.stringify(res_body));
+        console.log('[crtsub]', count + ' - ' + parent + '/' + rn + ' - x-m2m-rsc : ' + rsc + ' <----');
+        // console.log(JSON.stringify(res_body));
         callback(rsc, res_body, count);
     });
 }
 
 function http_request(origin, path, method, ty, bodyString, callback) {
     var options = {
-        hostname: conf.cse.host,
-        port: conf.cse.port,
-        path: path,
-        method: method,
-        headers: {
+        hostname: conf.cse.host, port: conf.cse.port, path: path, method: method, headers: {
             'X-M2M-RI': require('shortid').generate(),
             'Accept': 'application/json',
             'X-M2M-Origin': origin,
