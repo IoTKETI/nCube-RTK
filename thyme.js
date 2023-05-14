@@ -19,9 +19,6 @@ global.resp_mqtt_ri_arr = [];
 global.resp_mqtt_path_arr = {};
 global.socket_q = {};
 
-//fs.writeFileSync('aei.json', JSON.stringify(conf, null, 4), 'utf-8');
-
-//global.sh_state = 'rtvae';
 global.sh_state = 'crtae';
 
 global.mqtt_client = null;
@@ -29,7 +26,7 @@ global.mqtt_client = null;
 global.conf = {};
 
 conf.cse = {};
-conf.cse.host = 'gcs.iotocean.org'; //'muv.iotocean.org';
+conf.cse.host = 'gcs.iotocean.org'; // 'muv.iotocean.org';
 conf.cse.port = 7579;
 conf.cse.mqttport = 1883;
 conf.usesecure = 'disable';
@@ -37,17 +34,17 @@ conf.commLink = 'tcp'; //'udp'; //'tcp';
 conf.gcs_sys_id = 255;
 
 // AE core
-conf.aei = "SgMavUTM"
-
 conf.rtk = 'KETI_RTK'
 
+conf.aei = "S" + conf.rtk;
+
 conf.sitl = {};
-conf.sitl.name = "KETI_Simul_1"
-conf.sitl.gcs = "KETI_GCS"
+conf.sitl.name = "KETI_Simul_1";
+conf.sitl.gcs = "KETI_GCS";
 conf.sitl.goto_position = [
     'cancel', '37.2597483:126.6766316:6:2', '37.2597611:126.6759114:6:2'
 ];
-conf.sitl.system_id = 105
+conf.sitl.system_id = 105;
 
 conf.drone = [];
 
@@ -76,11 +73,5 @@ conf.auto_led = 'disable';  // 'enable'; // 'disable';
 
 conf.running_type = 'local';        // 'local' or 'global' : When this is worked in Server, select 'global'
 
-conf.use_terminal = 'disable'; //'enable';
-
-if (conf.use_terminal === 'enable') {
-    require('./terminal_app');
-} else {
-    require('./http_app');
-}
+require('./http_app');
 

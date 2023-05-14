@@ -20,7 +20,6 @@ var net = require('net');
 var udp = require('dgram');
 
 var mavlink = require('./mavlibrary/mavlink.js');
-const http = require("https");
 
 mqtt_connect(conf.cse.host);
 
@@ -36,7 +35,7 @@ function mqtt_connect(serverip) {
                 port: conf.cse.mqttport,
                 protocol: "mqtt",
                 keepalive: 10,
-                clientId: 'mqtt_RTK_' + nanoid(15),
+                clientId: 'mqtt_' + conf.rtk + '_' + nanoid(15),
                 protocolId: "MQTT",
                 protocolVersion: 4,
                 clean: true,
@@ -50,7 +49,7 @@ function mqtt_connect(serverip) {
                 port: conf.cse.mqttport,
                 protocol: "mqtts",
                 keepalive: 10,
-                clientId: 'mqtts_RTK_' + nanoid(15),
+                clientId: 'mqtts_' + conf.rtk + '_' + nanoid(15),
                 protocolId: "MQTT",
                 protocolVersion: 4,
                 clean: true,
