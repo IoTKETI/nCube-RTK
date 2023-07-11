@@ -15,6 +15,7 @@
 var fs = require('fs');
 var mqtt = require('mqtt');
 var {nanoid} = require("nanoid");
+const {exec} = require("child_process");
 
 var net = require('net');
 var udp = require('dgram');
@@ -40,7 +41,7 @@ function init() {
                             if (res_body.hasOwnProperty('m2m:cin')) {
                                 if (res_body['m2m:cin'].hasOwnProperty('con')) {
                                     conf.drone = res_body['m2m:cin'].con;
-                                    // console.log(conf.drone);
+                                    console.log(conf.drone);
 
                                     fs.writeFileSync(drone_info_file, JSON.stringify(conf.drone, null, 4), 'utf8');
                                     control_drone_info_topic = '/Mobius/' + conf.rtk + '/DroneList';
@@ -253,6 +254,18 @@ function mqtt_connect(serverip) {
                         }
                     }
                 }
+
+                exec('pm2 restart nCube-RTK', (error, stdout, stderr) => {
+                    if (error) {
+                        console.log('error: ' + error);
+                    }
+                    if (stdout) {
+                        console.log('stdout: ' + stdout);
+                    }
+                    if (stderr) {
+                        console.log('stderr: ' + stderr);
+                    }
+                });
             } else if (topic.includes('/oneM2M/req/')) {
                 var jsonObj = JSON.parse(message.toString());
 
